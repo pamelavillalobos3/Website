@@ -1,0 +1,145 @@
+---
+title: 'Project 1: Exploratory Data Analysis'
+author: "Pamela Villalobos (pav495)"
+date: "3/15/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+## Introduction:
+The first dataset acquired shows the overdose death counts in every state of the United States for every month between the years 2015 to 2018. This data was obtained through Kaggle, a dataset database, but the actual values were collected by the Center for Disease Control and Prevention. The variables contained in this dataset are state, year, month, and death counts. This information of the prevalance of overdoses leading to fatality is interesting to me because of my interest in medicine and forensic pathology which largely focuses on leading causes of death in the U.S. 
+
+To expand on this project, a second dataset displaying the U.S. population and birth counts by years 2015 to 2018 and all fifty states. This data was directly obtained from the U.S Census Bureau's Population Division. The variables contained in this dataset are state, population and birth counts for four years, each in their own columns. This information is valuable because it pairs nicely with the first dataset. These two datasets can allow us to see if there is a correlation between growing rates of overdoses and growing populations. The growth of overdoses given the growth of overall populations per state is a association that I figure would be very possible.
+
+## Tidying: Rearranging Wide/Long 
+
+
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(reshape2)
+library(ggplot2)
+Overdose_Counts <- read_csv("Overdose Counts.csv")
+Census_Data<- read_csv("Census Data.csv")
+Census <- Census_Data%>%pivot_longer(6:13)%>%separate(name,sep=-4,into=c("var","year")) %>% pivot_wider(names_from="var", values_from="value") %>% select(-REGION,-DIVISION, -SUMLEV, -STATE) 
+```
+The census data was not in the preferred tidy format, therefore it was best to make it longer and break up the multiple columns that shared the years and another variable, such as POPESTIMATE2015, into their own columns. Then I made sure to return the data to a wide view so that POPESTIMATE and BIRTHS could have their own columns each. The finishing touched for the editing of the census data were made by removing the unneeded columns, which included -REGION,-DIVISION, -SUMLEV, and -STATE.
+
+## Joining/Merging Data
+
+```{r}
+Overdose <- Overdose_Counts %>% rename("Counts" = "Death Counts")
+forreference <- Overdose %>% group_by(State, Year) %>% summarise(sum = sum(Counts))
+write.csv(forreference, "overdose.csv")
+overdose2 <- read_csv("overdose4use.csv")
+census3 <- read_csv("census4use.csv")
+truejoined <- overdose2 %>% full_join(census3, by=c("State"="NAME", "Year"="Year")) %>% na.omit()
+```
+
+
+To begin the process of merging, I created a csv of the overdose dataframe so that I could change the names of the the states written as acronyms to their entire name so that I could smoothly combine both datasets by joining them by Year and State name. I quickly wrote the Excel sheet back into the R system. I chose to do a full join, because I wanted to make sure that all values were kept regardless of if they did not have matching pairs. Then I decided to omit the NA's that were present so that I could only focus on the desired states. Upon doing this drop of NA's, 20 cases were removed from the combined dataset.
+
+## Wrangling
+
+```{r}
+#1.
+truejoined %>% select(POPESTIMATE, sum, Year, State) %>% group_by(State,Year) %>% summarize(Population_med = median(POPESTIMATE)) %>% head()
+#2. 
+truejoined%>%mutate(BIRTHS2=BIRTHS^2)%>%group_by(State)%>%summarize(mean=mean(BIRTHS2), sd=sd(BIRTHS2)) %>% head()
+#3. 
+truejoined %>% arrange(desc(sum)) %>% head()
+#4.
+filter(truejoined, Year > 2015 & State == "Texas")
+#5.
+filter(truejoined, Year < 2017 & State == "Oregon")
+#6.
+quantile(truejoined$POPESTIMATE)
+#7.
+truejoined%>% group_by(Year) %>% summarize(max_births=max(BIRTHS)) 
+#8.
+truejoined%>% group_by(State) %>% summarize(min_population=min(POPESTIMATE)) %>% head()
+#9.
+truejoined%>% filter(State == "Vermont") %>% group_by(State)
+#10.
+truejoined %>% select(POPESTIMATE, BIRTHS, sum, Year, State) %>% filter(BIRTHS > 50000) %>% n_distinct()
+
+#correlation matrix
+my_data <- truejoined[, c(2,3,4,5)]
+res <- cor(my_data)
+round(res, 2)
+```
+The first summary statistic that I ran found the median population as selected for by year and state. The second code showed the mean births and standard deviation per state over four years when the original birth counts were mutated by squaring them to show an exponential increase. The third code arranges the overdose death counts from largest to smallest per year and state which shows that California has the largest observations of overdose deaths. The fourth code shows only the statistics for Texas between the years 2016 to 2018. The fifth code shows only the statistics for Oregon between the years 2015 to 2016 
+  
+The sixth code shows the quantiles for the population estimates of all of the states in the data set. The seventh code shows the maximum births that occured per year from 2015 to 2018. The eighth codes shows the minimum overall population out of the four years for each state. The ninth code shows the summary statistics for Vermont only over the four year span. The tenth code list the number rows that had births over 50,000 per year and state. The final code was created to form a correlation matrix between the numerical variables.
+
+
+## Visualizing
+
+```{r}
+graphdata <- truejoined[1:40,]
+ggplot(data = graphdata, aes(x = Year, y = sum , color = State)) +geom_point() + ggtitle("Overdose Death Counts From 2015 to 2018 in All 50 States") + geom_line()+ scale_y_continuous(name = "Death Counts") 
+```
+
+The graph above shows the first ten states by alphabetical order in a line graph connecting year and death counts. The most apparent relationships within this graph is that California has the highest death counts by a significantly larger number than the other states. The state with the second highest overdose death counts is Florida. This makes sense because these states have a larger population than the rest, but this will be further explained in other graphs. For all states, there also seems to be a decrease in overdose death counts from the year 2015 to 2018.
+
+
+
+```{r}
+graphdata2 <- truejoined[54:76,]
+ggplot(graphdata2, aes(x=State))+geom_bar(aes(y=BIRTHS), stat="summary", fun.y="mean") + ggtitle("Six States and their Average Births over Four Years") + scale_y_continuous(name = "Births")
+```
+
+The bar graph above shows six states, Idaho, Indiana, Kansas, Kentucky, Louisiana, and Massachusetts, in relation to the average births over the four years. From this graph, we can see that Indiana has the highest birth average and Idaho has the lowest birth average.  
+
+```{r}
+ggplot(truejoined, aes(POPESTIMATE, sum, color=Year))+geom_point(size=3)+  scale_x_log10(name="Estimated Population")+scale_y_log10(name= "Death Counts")+ ggtitle("Death Counts vs Estimated Population in the U.S. per Year")+ scale_x_continuous(breaks = scales::pretty_breaks(n = 3))
+```
+ The graph above shows how the population estimates and death counts per state but filtered by year. From this data we can see that there is a consistent growth pattern seen with the population estimate and the death counts of a state. As the population grows, the death counts of the state also grow. Because the shades of blue describe the different years, it is easy to visualize that 2018 has seen a decrease in overall death counts even with the increasing population sizes. 
+
+```{r}
+cordata <- select(truejoined, Year, POPESTIMATE, sum, BIRTHS) %>% cor()
+ggplot(data = melt(cordata), aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()+ggtitle("Heatmap for Total Population, Births, and Overdose Deaths")
+```
+The correlation heatmap above shows that most of the variables do not have strong correlations with one another. The two variables with the largest degree of correlations is overdose births (BIRTHS) and population estimate (POPESTIMATE), which seems like it has a correlation value extremely close to 1. The combination of overdose death counts and births and population estimate and death counts both have a correlation value of about 0.8. All other combination of variables have little to no correlation. 
+
+## Dimensionality Reduction 
+
+```{r}
+#PAM Clustering
+library(cluster)
+pam2<-truejoined%>%select(-State)%>%pam(3)
+
+
+sil_width<-vector() 
+for(i in 2:10){
+pam_fit <- truejoined%>%select(-State)%>%pam(i)
+sil_width[i] <- pam_fit$silinfo$avg.width }
+ggplot()+geom_line(aes(x=1:10,y=sil_width))+scale_x_continuous(name="k",breaks=1:10)
+
+final<-truejoined%>%mutate(cluster=as.factor(pam2$clustering))
+
+confmat<-final%>%group_by(State, Year)%>%count(cluster)%>%arrange(desc(n))%>%
+pivot_wider(names_from="cluster",values_from="n",values_fill = list('n'=0))
+
+confmat
+
+pamclust<-truejoined %>% mutate(cluster=as.factor(pam2$clustering))
+pamclust %>% ggplot(aes(sum,POPESTIMATE,color=cluster)) + geom_point()
+pamclust %>% group_by(cluster) %>% summarize_if(is.numeric,mean,na.rm=T)
+truejoined[pam2$id.med,]
+
+
+round(sum(diag(as.matrix(confmat[,2:4])))/sum(confmat[,2:4]),4)
+
+plot(pam2,which=2)
+
+```
+The first graph in the clustering section shows that k=6 has the highest sil_width which means that it has a strong structure. The second graph of this section helps explain the clusters the best. The clusters can be seen each in their main three areas, the low population estimates plus low death counts,the medium population estimates plus medium death counts, and the variables both at high amounts. Cluster three shows much more spread than do the other two. When testing how good our cluster solutions are, the number received was 0.005 which is pretty bad, meaning that our data clusters were not quality.  Because the average sillouhette width is 0.6, it means that no substantial structure was found. This therefore means that the clusters most likely contains too many outliers and do not follow a convex shape.

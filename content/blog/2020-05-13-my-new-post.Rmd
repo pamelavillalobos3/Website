@@ -1,0 +1,45 @@
+---
+title: Python & R
+author: ''
+date: '2020-05-13'
+slug: my-new-post
+categories: []
+tags: []
+description: ''
+---
+
+![](/blog/2020-05-13-my-new-post_files/Campus-tower.jpg)
+
+This two codes below shows a short and sweet example how the random variables created in python can then be called into R to create a scatterplot.
+
+```{python}
+#python code chunk
+import numpy as np
+import matplotlib.pyplot as plt
+x=np.random.normal(0,2,75)
+y=np.random.normal(0,2,75)
+```
+
+```{r}
+#R code chunk
+library(reticulate)
+library(ggplot2)
+ggplot()+geom_point(aes(py$x,py$y))
+```
+
+Not only does using both R and python serve as a great system for numerical variables, it also does a great job at understanding and translating words. This next example shows how a phrase can be built using both R and python. In the codes below, it is first done by attaching a phrase to a code word and using that same code word in python to tag on another phrase. When you print the r. called code word and the python code word, you get the entire phrase. 
+
+```{r} 
+#R chunk
+library(reticulate)
+first <- "I love dogs, because"
+```
+
+```{python}
+#Python chunk
+first = "they are soft and love to cuddle"
+print(r.first,first)
+```
+
+
+

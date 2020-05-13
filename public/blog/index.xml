@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Blogs on Portfolio</title>
+    <link>/blog/</link>
+    <description>Recent content in Blogs on Portfolio</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Wed, 13 May 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/blog/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Python &amp; R</title>
+      <link>/blog/my-new-post/</link>
+      <pubDate>Wed, 13 May 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/blog/my-new-post/</guid>
+      <description>This two codes below shows a short and sweet example how the random variables created in python can then be called into R to create a scatterplot.
+#python code chunk import numpy as np import matplotlib.pyplot as plt x=np.random.normal(0,2,75) y=np.random.normal(0,2,75) #R code chunk library(reticulate) library(ggplot2) ggplot()+geom_point(aes(py$x,py$y)) Not only does using both R and python serve as a great system for numerical variables, it also does a great job at understanding and translating words.</description>
+    </item>
+    
+  </channel>
+</rss>

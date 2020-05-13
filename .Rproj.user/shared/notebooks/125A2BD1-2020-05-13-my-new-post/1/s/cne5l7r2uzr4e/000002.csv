@@ -1,0 +1,7 @@
+"0","first = ""they are soft and love to cuddle""
+print(r.first,last)"
+"2","Traceback (most recent call last):
+  File ""/tmp/RtmpRVpXDW/chunk-code-37a57fc3a465.txt"", line 2, in <module>
+    print(r.first,last)
+NameError: name 'r' is not defined
+"

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Portfolio</title>
+    <link>/</link>
+    <description>Recent content on Portfolio</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Sun, 02 Oct 2016 22:55:05 -0400</lastBuildDate>
+    
+	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Python &amp; R</title>
+      <link>/blog/my-new-post/</link>
+      <pubDate>Wed, 13 May 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/blog/my-new-post/</guid>
+      <description>This two codes below shows a short and sweet example how the random variables created in python can then be called into R to create a scatterplot.
+#python code chunk import numpy as np import matplotlib.pyplot as plt x=np.random.normal(0,2,75) y=np.random.normal(0,2,75) #R code chunk library(reticulate) library(ggplot2) ggplot()+geom_point(aes(py$x,py$y)) Not only does using both R and python serve as a great system for numerical variables, it also does a great job at understanding and translating words.</description>
+    </item>
+    
+    <item>
+      <title>Projects</title>
+      <link>/projects/</link>
+      <pubDate>Sun, 02 Oct 2016 22:55:05 -0400</pubDate>
+      
+      <guid>/projects/</guid>
+      <description>Projects Here are some projects I have recently completed:
+  Exploratory Data Analysis with Tidyverse Tools
+  Modeling, Testing, and Classification
+  </description>
+    </item>
+    
+    <item>
+      <title>Project 1: Exploratory Data Analysis</title>
+      <link>/project1/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project1/</guid>
+      <description>Introduction: The first dataset acquired shows the overdose death counts in every state of the United States for every month between the years 2015 to 2018. This data was obtained through Kaggle, a dataset database, but the actual values were collected by the Center for Disease Control and Prevention. The variables contained in this dataset are state, year, month, and death counts. This information of the prevalance of overdoses leading to fatality is interesting to me because of my interest in medicine and forensic pathology which largely focuses on leading causes of death in the U.</description>
+    </item>
+    
+    <item>
+      <title>Project 2: Modeling, Testing, and Predicting</title>
+      <link>/project2/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project2/</guid>
+      <description>0.Introduction The dataset that I will be using for this project is the “melanoma” dataset from the ‘boot’ package. This dataset has measured some data on patients with malignant melanoma who had their tumors removed at the University Hospital of Odense, Denmark in the year 1962 and 1977. The variables in this dataset are thickness of tumor, presense of ulceration, survival time in days since the operation, status of condition, sex, and age at the time of the operation.</description>
+    </item>
+    
+  </channel>
+</rss>

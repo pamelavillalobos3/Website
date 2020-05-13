@@ -1,0 +1,258 @@
+---
+title: "Project 2: Modeling, Testing, and Predicting"
+author: "Pamela Villalobos"
+date: "05/01/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+## 0.Introduction
+
+The dataset that I will be using for this project is the "melanoma" dataset from the 'boot' package. This dataset has measured some data on patients with malignant melanoma who had their tumors removed at the University Hospital of Odense, Denmark in the year 1962 and 1977. The variables in this dataset are thickness of tumor, presense of ulceration, survival time in days since the operation, status of condition, sex, and age at the time of the operation. There are 205 observations per variable. This dataset will be used to study the increased chance of death from melanoma based on the statistics taken. 
+
+
+```{r}
+library(boot)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(reshape2)
+library(ggplot2)
+library(lmtest)
+data("melanoma")
+mela <- melanoma %>% select(-year, -ulcer)
+head(mela)
+```
+
+## 1. MANOVA, ANOVA, post-hoc t test
+
+```{r}
+man1<-manova(cbind(time,age,thickness)~status, data=mela)
+summary(man1)
+summary.aov(man1)
+pairwise.t.test(mela$time, mela$status, p.adj="none")
+pairwise.t.test(mela$age, mela$status, p.adj="none")
+pairwise.t.test(mela$thickness, mela$status, p.adj="none")
+
+#Probability of at least one type error
+1-0.95^7
+#Bonferroni correction (1 manova, 3 anovas, 3 t-tests)
+0.05/7
+```
+By performing the MANOVA test with my numeric variables against 'status', we can see that the p-value is 0.000001571 which is well under 0.007. Therefore, the null hypothesis is rejected and it can be said that there is at least one of the time, age, and/or thickness variables has a group means that differs for status. To further see which variable differs, a univerate ANOVA was performed. This test showed that thickness and time both had p-values below 0.007 and therefore had at least one status mean that differs.
+
+Poc hoc analysis was conducted to determine which status differed for the variables. Time and thickness differed significantly from each other in status after adjusting for multiple comparisons (bonferroni alpha= .05/7=0.007). The probability of at least one Type I error is 0.302. 
+
+There are many assumptions for MANOVA tests. These include random samples, independent observations, multivariate normality of variables, homogeneity of within-group  covariance matrices, linear relationships among variables, no extreme outliers, and no multicollinearity. These assumptions are usually hard to meet in real world examples like the one of the "melanoma" dataset that is dealing with imperfect, real data which contains outliers, confounding varables, and scattered observations. 
+
+## 2.Randomization
+```{r}
+obs_F <- 22.543
+
+Fs <-replicate(5000,{
+  new<-mela%>%mutate(time=sample(time))
+  SSW <- new%>%group_by(status) %>% summarize(SSW=sum((time-mean(time))^2))%>%
+    summarize(sum(SSW))%>%pull 
+  SSB <- new%>% mutate(mean=mean(time))%>%group_by(status)%>%mutate(groupmean=mean(time))%>%
+    summarize(SSB=sum((mean-groupmean)^2))%>%summarize(sum(SSB))%>%pull
+  (SSB/1)/(SSW/203)
+})
+hist(Fs, prob=T); abline(v= obs_F, col="red", add=T)
+mean(Fs>obs_F)
+```
+
+A permutation randomization test was then performed on the time variable and conditions from part 1. The null hypothesis is that all of the group means for the variable 'time' are equal when referring to status. The alternative hypothesis is that one of time has a status group that has differing group means. Upon performing the test, the p-value that was calculated was basically 0 which means that none of the 5000 F statistics generated were bigger than the F statistic of 22.543 which is exemplified by the histogram showing all of the Fs calculated. Therefore the null hypothesis can be rejected. This confirms what is found by using the MANOVA/ANOVA tests previously that 'time' has a status groups that has differing means. 
+
+
+## 3. Linear Regression Model 
+```{r}
+mela$thickness_c <-mela$thickness - mean(mela$thickness)
+mela$age_c <-mela$age - mean(mela$age)
+m_fit<-lm(time~thickness_c*age_c, data= mela) 
+summary(m_fit)
+coef(lm(time~thickness_c*age_c,data=mela))
+mela%>%ggplot(aes(time,thickness_c*age_c))+geom_point()+geom_smooth(method = 'lm',se=F)
+resids<-lm(time~thickness*age, data=mela)$residuals
+
+# Normally distributed residuals - Do Kolmogorov-Smirnov test or SHapiro-Wilk (Ho-normal)
+ks.test(resids, "pnorm", mean=0, sd(resids))
+ggplot()+geom_histogram(aes(resids),bins=10)
+#Equal variance of points/residuals along regression line (homoskedasticity) - plot residuals against y-hats (look for fanning out) or do a breuch-pagan test (Ho-homoske.)
+#Linear relationship between X (interaction) amd Y (response) - eyeball it
+library(sandwich)
+library(lmtest) 
+bptest(m_fit)
+
+#Corrected robust SE
+summary(m_fit)$coef[,1:2]
+coeftest(m_fit, vcov = vcovHC(m_fit))
+ 
+```
+To observe the interaction between thickness and age on time, a linear regression was performed. The coefficients found explain that for every one additional millimeter in thickness, odds of survival time decreases by a factor of 55.8. For every additional year of age at the time of operation, the odds of survival time decreases by a factor of 17.506. The interaction of both increasing by a single unit, would have the survival time decreasing by a factor of 1. 
+
+The regression plot for this interaction is pictured above. To test the some assumptions of a regression, we used different tests and graphs. To test normality, a Kolmogorov-Smirnov test was ran and the results showed that the p-value was above 0.05 and therefore, we fail to reject the null hypothesis that the residuals are normally distributed. The linearity was confirmed by looking at the regression plot with shows the data points have a relationship that is somewhat linear between the interaction of thickness and age versus time. A breuch-pagan test was performed to test homoskedasticity and the results showed a p-value that was below 0.05. Therefore, the null hypothesis that there was equal variance of points along the regression line was rejected. 
+
+The data was then adjusted with robust standard errors. Correcting standard errors in this model is not very helpful for making the points more homoskedastic. The corrected standard errors increased a bit from the previous coefficient model. The model explains about 0.1277 of the variance in the outcome. 
+
+## 4.Regression Model with interaction but with bootstrap 
+
+```{r}
+fit <-lm(time~thickness_c*age_c, data= mela)
+resids <-fit$residuals
+fitted <- fit$fitted.values
+
+resid_resamp <-replicate(5000,{
+  new_resids<-sample(resids,replace=TRUE)
+  mela$new_y<-fitted+new_resids
+  fit<-lm(new_y~thickness_c*age_c, data=mela)
+  coef(fit)
+})
+
+resid_resamp %>% t %>% as.data.frame %>% gather %>% group_by(key) %>% summarize(lower=quantile(value,0.025), upper=quantile(value, .975))
+
+coeftest(fit)[,1:2]
+coeftest(fit, vcov=vcovHC(fit))[,1:2]
+
+resid_resamp %>% t %>% as.data.frame %>% summarize_all(sd)
+```
+
+The residuals were then bootstrapped in addition to the regression model. After bootstrapping, the standard errors of the residuals were even higher than they were in the original standard errors and robust standard errors. This also means that the p-value for the  model after bootstrapping was smaller than those of the previous two standard error results. 
+
+## 5.Perform a logistic regression redicting a binary categorical variable 
+```{r}
+class_diag<-function(probs,truth){ tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth) 
+acc=sum(diag(tab))/sum(tab)
+sens=tab[2,2]/colSums(tab)[2]
+spec=tab[1,1]/colSums(tab)[1]
+ppv=tab[2,2]/rowSums(tab)[2]
+if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) 
+  truth<-as.numeric(truth)-1
+
+#CALCULATE EXACT AUC
+ord<-order(probs, decreasing=TRUE)
+probs <- probs[ord]; truth <- truth[ord]
+TPR=cumsum(truth)/max(1,sum(truth))
+FPR=cumsum(!truth)/max(1,sum(!truth))
+dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+n <- length(TPR)
+auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) ) 
+data.frame(acc,sens,spec,ppv,auc)
+}
+bc_fit<-glm(ulcer~thickness+age, data= melanoma, family = binomial(link = "logit"))
+
+summary(bc_fit)
+
+coeftest(bc_fit)
+coef(lm(bc_fit))
+
+prob<-predict(bc_fit,type="response") 
+y<-ifelse(melanoma$ulcer==1,1,0) 
+table(predict=as.numeric(prob>.5),truth=y)%>%addmargins
+
+(102+53)/205 #accuracy
+53/90 #TPR
+102/115 #TNR
+53/90 #Sens
+ 
+stat<-class_diag(prob, y)
+odds<-function(p)p/(1-p)
+p<-seq(0,1,by=.1)
+cbind(p, odds=odds(p))%>%round(4)
+
+ggplot()+stat_function(aes(p),fun=odds,geom="line")+ ylab("odds(p)")+xlab("ulcer")
+ 
+ROC1<-data.frame(stat$sens,stat$spec,cutoff=seq(0,1,.01))
+Sensitivity<-stat$sens 
+Specificity<-stat$spec
+ROCplot<-ggplot(ROC1)+geom_path(aes(Sensitivity,Specificity),size=1.5)+geom_segment(aes(x=0,y=0,xend=1,yend=1),lty=2)+ scale_x_continuous(limits = c(0,1))
+ROCplot
+
+library(plotROC)
+ROCplot<-ggplot(melanoma)+geom_roc(aes(d=y,m=prob), n.cuts=0) 
+ROCplot
+
+calc_auc(ROCplot)
+
+set.seed(1234)
+k=10 #choose number of folds
+data<-melanoma[sample(nrow(melanoma)),] #randomly order rows
+folds<-cut(seq(1:nrow(melanoma)),breaks=k,labels=F) #create folds
+diags<-NULL
+for(i in 1:k){
+  ## Create training and test sets  
+  train<-data[folds!=i,]  
+  test<-data[folds==i,]  
+  truth<-test$y ## Truth labels for fold i
+  ## Train model on training set (all but fold i) 
+  fit<-glm(ulcer~thickness+age,data=train,family="binomial")
+  ## Test model on test set (fold i)   
+  probs<-predict(fit,newdata = test,type="response") ## Get diagnostics for fold i 
+  diags<-rbind(diags,class_diag(probs,truth))
+}
+
+summarize_all(diags, mean)
+```
+
+A logistic regression was then ran on the binary variable, ulcer, from the explanatory variables, thickness and age, not including their interaction. The coefficient test can be interpreted by showing that for every one addition millimeter in thickness, odds of having ulceration increases by a factor of 0.07. We can also interpret that for every one addition year in age at which the time of operation occurs, odds of having ulceration increases by a factor of 0.001. After creating a confusion matrix, the Accuracy, Sensitivity (TPR), Specificity (TNR), and Recall (PPV) of the model was computed in which the accuracy was computed to be 0.756, TPR was 0.589, TNR was 0.887. Given the accuracy, this model is not too bad at predicting ulceration based on the two variables discussed. The AUC created from the ROC plot was able to confirm this by being 0.82 which means that the model is "good" at predicting. 
+
+A 10 fold cross validation was ran and now the AUC is 1 which means that the model is great at predicting when repeatedly many times. The accuracy is now about 0.08, sensitivity is about 0.4, and specificity is about 0.11. 
+
+
+## LASSO 
+
+```{r}
+library(glmnet)
+set.seed(1234)
+y<-as.matrix(mela$sex) #grab response 
+x<-mela %>% select(-sex)%>% mutate_all(scale)%>%as.matrix #grab predictors
+head(x)
+
+cv2<-cv.glmnet(x,y, family='binomial')
+lasso2<-glmnet(x,y, family='binomial', lambda=cv2$lambda.1se)
+coef(lasso2)
+
+set.seed(1234)
+k=10 #choose number of folds 
+data1<-mela[sample(nrow(mela)),] #randomly order rows
+folds<-cut(seq(1:nrow(mela)),breaks=k,labels=F) #create folds
+diags<-NULL 
+for(i in 1:k){
+  ## Create training and test sets
+train<-data1[folds!=i,] 
+test<-data1[folds==i,] 
+truth<-test$sex
+  ## Train model on training set
+lafit<-glm(sex~time,data=train,family="binomial") 
+probs<-predict(lafit,newdata = test,type="response")
+  ## Test model on test set (save all k results)
+diags<-rbind(diags,class_diag(probs,truth)) 
+}
+diags%>%summarize_all(mean)
+
+
+set.seed(1234)
+k=10 #choose number of folds 
+data2<-mela[sample(nrow(mela)),] #randomly order rows
+folds<-cut(seq(1:nrow(mela)),breaks=k,labels=F) #create folds
+diags<-NULL 
+for(i in 1:k){
+  ## Create training and test sets
+train<-data2[folds!=i,] 
+test<-data2[folds==i,] 
+truth<-test$sex
+  ## Train model on training set
+lafit<-glm(sex~.,data=train,family="binomial") 
+probs<-predict(lafit,newdata = test,type="response")
+  ## Test model on test set (save all k results)
+diags<-rbind(diags,class_diag(probs,truth)) 
+}
+diags%>%summarize_all(mean)
+
+```
+For the final portion of this project, a LASSO regression was conducted to increase accuracy. Upon running the coefficinets of LASSO, the only variable that is retained is time, which means that it is the most predictive variable for sex containting melanoma. A 10 fold cross validation was then run and the AUC is 0.583. This cannot be compared to the logistic regression above since the variables used are different. Therefore, I compared it to the AUC of 0.555 from sex being predicted from ALL variables. Therefore, this is proof that LASSO is better able to predict sex by time than by all other variables. 
